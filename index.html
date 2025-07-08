@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPPP5Pro - Plant Control</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #F3EFE0;
+      color: #3E3E3E;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      color: #6B8E23;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 18px;
+      margin: 10px;
+      background-color: #A8C66C;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    button:hover {
+      background-color: #92b15a;
+    }
+    #status {
+      margin-top: 30px;
+      font-size: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌿 SPPP5Pro Plant Control</h1>
+  <button onclick="connectBluetooth()">🔗 Connect to Plant</button>
+  <button onclick="sendWaterCommand()">💧 Water Now</button>
+  <div id="status">Waiting for connection...</div>  <script>
+    let bluetoothDevice;
+    let txCharacteristic;
+
+    async function connectBluetooth() {
+      try {
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'SPPP5Pro' }],
+          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+        });
+
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+        txCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+
+        document.getElementById("status").innerText = "✅ Connected to SPPP5Pro!";
+      } catch (error) {
+        document.getElementById("status").innerText = "❌ Connection failed: " + error;
+      }
+    }
+
+    async function sendWaterCommand() {
+      if (!txCharacteristic) {
+        document.getElementById("status").innerText = "⚠️ Please connect first.";
+        return;
+      }
+      const encoder = new TextEncoder();
+      await txCharacteristic.writeValue(encoder.encode("WATER"));
+      document.getElementById("status").innerText = "💧 Watering...";
+    }
+  </script></body>
+</html>

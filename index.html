@@ -1,166 +1,120 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SPPP5Pro - Plant Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SPPP5Pro - Smart Plant Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background-color: #F3EFE0;
-      color: #3E3E3E;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
+      background: linear-gradient(to bottom right, #e8f5e9, #f1f8e9);
+      color: #333;
+    }
+    .header {
       padding: 20px;
+      background: rgba(0, 128, 0, 0.1);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      font-weight: bold;
+      font-size: 1.2em;
+      border-bottom: 2px solid #c8e6c9;
     }
-    h1 {
-      color: #6B8E23;
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 14px 28px;
-      font-size: 16px;
-      margin: 8px;
-      background-color: #A8C66C;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #92b15a;
-    }
-    #status {
-      margin-top: 10px;
-      font-size: 16px;
-      text-align: center;
-    }
-    canvas {
-      margin-top: 20px;
-      background: #fff;
+    .header div {
+      margin: 10px;
+      padding: 10px 20px;
+      background: #a5d6a7;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      color: #1b5e20;
+    }
+    .chart-container {
+      width: 90%;
+      max-width: 1000px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-top: 30px;
+      color: #2e7d32;
     }
   </style>
 </head>
 <body>
-  <h1>🌿 SPPP5Pro Plant Control</h1>
-  <button onclick="connectBluetooth()">🔗 Connect to Plant</button>
-  <button onclick="sendWaterCommand()">💧 Water Now</button>
-  <div id="status">Waiting for connection...</div><canvas id="sensorChart" width="350" height="200"></canvas>
+
+  <div class="header">
+    <div id="temp">Temp: 29°C</div>
+    <div id="light">Light: 320 Lux</div>
+    <div id="moist">Moisture: 58%</div>
+    <div id="status">Status: 😊 All Good!</div>
+  </div>
+
+  <h2>Plant History - Last 30 Days</h2>
+  <div class="chart-container">
+    <canvas id="plantChart"></canvas>
+  </div>
 
   <script>
-    let bluetoothDevice, txChar, rxChar;
-    const MAX_POINTS = 30;
+    // Simulated data (you'll replace this with real ESP32 input later)
+    const labels = Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
+    const tempData = Array.from({ length: 30 }, () => Math.floor(22 + Math.random() * 6));
+    const moistureData = Array.from({ length: 30 }, () => Math.floor(40 + Math.random() * 30));
+    const lightData = Array.from({ length: 30 }, () => Math.floor(100 + Math.random() * 500));
 
-    const ctx = document.getElementById('sensorChart').getContext('2d');
-    const chart = new Chart(ctx, {
+    const ctx = document.getElementById('plantChart').getContext('2d');
+    const plantChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [],
+        labels,
         datasets: [
           {
-            label: 'Moisture',
-            data: [],
-            borderColor: '#6B8E23',
+            label: 'Moisture (%)',
+            data: moistureData,
+            borderColor: '#388e3c',
+            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+            fill: true,
             tension: 0.4,
-            fill: false
           },
           {
             label: 'Temperature (°C)',
-            data: [],
-            borderColor: '#ff7f50',
+            data: tempData,
+            borderColor: '#f57c00',
+            backgroundColor: 'rgba(255, 152, 0, 0.2)',
+            fill: true,
             tension: 0.4,
-            fill: false
           },
           {
-            label: 'Light (LDR)',
-            data: [],
-            borderColor: '#4682B4',
+            label: 'Light (Lux)',
+            data: lightData,
+            borderColor: '#1976d2',
+            backgroundColor: 'rgba(33, 150, 243, 0.2)',
+            fill: true,
             tension: 0.4,
-            fill: false
           }
         ]
       },
       options: {
-        responsive: false,
-        animation: false,
-        scales: {
-          x: {
-            display: false
-          },
-          y: {
-            beginAtZero: true
-          }
-        },
+        responsive: true,
         plugins: {
-          legend: {
-            labels: {
-              boxWidth: 12
-            }
+          legend: { position: 'top' },
+          title: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 10 }
           }
         }
       }
     });
+  </script>
 
-    async function connectBluetooth() {
-      try {
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'SPPP5Pro' }],
-          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
-        });
-
-        const server = await bluetoothDevice.gatt.connect();
-        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-        txChar = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
-        rxChar = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
-
-        await rxChar.startNotifications();
-        rxChar.addEventListener('characteristicvaluechanged', handleSensorData);
-
-        document.getElementById("status").innerText = "✅ Connected to SPPP5Pro!";
-      } catch (error) {
-        document.getElementById("status").innerText = "❌ Connection failed: " + error;
-      }
-    }
-
-    async function sendWaterCommand() {
-      if (!txChar) {
-        document.getElementById("status").innerText = "⚠️ Please connect first.";
-        return;
-      }
-      await txChar.writeValue(new TextEncoder().encode("WATER"));
-      document.getElementById("status").innerText = "💧 Watering...";
-    }
-
-    function handleSensorData(event) {
-      const text = new TextDecoder().decode(event.target.value);
-      const data = {};
-      text.split(',').forEach(item => {
-        const [key, val] = item.split(':');
-        if (key && val) data[key.trim()] = parseFloat(val.trim());
-      });
-
-      if (data.moisture && data.temp && data.ldr) {
-        const now = new Date().toLocaleTimeString();
-        const labels = chart.data.labels;
-        if (labels.length >= MAX_POINTS) labels.shift();
-        labels.push(now);
-
-        chart.data.datasets[0].data.push(data.moisture);
-        chart.data.datasets[1].data.push(data.temp);
-        chart.data.datasets[2].data.push(data.ldr);
-
-        chart.data.datasets.forEach(dataset => {
-          if (dataset.data.length > MAX_POINTS) dataset.data.shift();
-        });
-
-        chart.update();
-      }
-    }
-  </script></body>
+</body>
 </html>

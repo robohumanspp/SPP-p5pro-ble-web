@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -45,38 +44,55 @@
       margin-top: 30px;
       color: #2e7d32;
     }
+    .buttons {
+      text-align: center;
+      margin: 20px;
+    }
+    button {
+      padding: 14px 28px;
+      font-size: 16px;
+      margin: 8px;
+      background-color: #A8C66C;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #92b15a;
+    }
+    #live-status {
+      text-align: center;
+      font-size: 16px;
+      margin-top: 10px;
+    }
   </style>
 </head>
-<body>
-
-  <div class="header">
-    <div id="temp">Temp: 29°C</div>
-    <div id="light">Light: 320 Lux</div>
-    <div id="moist">Moisture: 58%</div>
-    <div id="status">Status: 😊 All Good!</div>
-  </div>
-
-  <h2>Plant History - Last 30 Days</h2>
+<body>  <div class="header">
+    <div id="temp">Temp: --°C</div>
+    <div id="light">Light: -- Lux</div>
+    <div id="moist">Moisture: --%</div>
+    <div id="status">Status: 🌱 Waiting...</div>
+  </div>  <div class="buttons">
+    <button onclick="connectBluetooth()">🔗 Connect to Plant</button>
+    <button onclick="sendWaterCommand()">💧 Water Now</button>
+    <div id="live-status">Waiting for connection...</div>
+  </div>  <h2>Plant History - Last 30 Days</h2>
   <div class="chart-container">
     <canvas id="plantChart"></canvas>
-  </div>
-
-  <script>
-    // Simulated data (you'll replace this with real ESP32 input later)
-    const labels = Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
-    const tempData = Array.from({ length: 30 }, () => Math.floor(22 + Math.random() * 6));
-    const moistureData = Array.from({ length: 30 }, () => Math.floor(40 + Math.random() * 30));
-    const lightData = Array.from({ length: 30 }, () => Math.floor(100 + Math.random() * 500));
+  </div>  <script>
+    let bluetoothDevice, txChar, rxChar;
+    const MAX_POINTS = 30;
 
     const ctx = document.getElementById('plantChart').getContext('2d');
     const plantChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels,
+        labels: [],
         datasets: [
           {
             label: 'Moisture (%)',
-            data: moistureData,
+            data: [],
             borderColor: '#388e3c',
             backgroundColor: 'rgba(76, 175, 80, 0.2)',
             fill: true,
@@ -84,7 +100,7 @@
           },
           {
             label: 'Temperature (°C)',
-            data: tempData,
+            data: [],
             borderColor: '#f57c00',
             backgroundColor: 'rgba(255, 152, 0, 0.2)',
             fill: true,
@@ -92,7 +108,7 @@
           },
           {
             label: 'Light (Lux)',
-            data: lightData,
+            data: [],
             borderColor: '#1976d2',
             backgroundColor: 'rgba(33, 150, 243, 0.2)',
             fill: true,
@@ -114,7 +130,78 @@
         }
       }
     });
-  </script>
 
-</body>
+    function updateHeader(data) {
+      document.getElementById("temp").innerText = `Temp: ${data.temp}°C`;
+      document.getElementById("light").innerText = `Light: ${data.ldr} Lux`;
+      document.getElementById("moist").innerText = `Moisture: ${data.moisture}%`;
+      let status = "🌿 All Good!";
+      if (data.moisture < 35) status = "🥀 I’m thirsty!";
+      else if (data.temp > 35) status = "🔥 Too hot!";
+      else if (data.temp < 15) status = "❄️ I’m shivering!";
+      else if (data.ldr < 100) status = "🌑 Too dark!";
+      document.getElementById("status").innerText = `Status: ${status}`;
+    }
+
+    function saveToLocalStorage(data) {
+      const history = JSON.parse(localStorage.getItem("plantHistory") || "[]");
+      const entry = { time: new Date().toLocaleTimeString(), ...data };
+      if (history.length >= MAX_POINTS) history.shift();
+      history.push(entry);
+      localStorage.setItem("plantHistory", JSON.stringify(history));
+    }
+
+    function loadHistoryFromStorage() {
+      const history = JSON.parse(localStorage.getItem("plantHistory") || "[]");
+      plantChart.data.labels = history.map(h => h.time);
+      plantChart.data.datasets[0].data = history.map(h => h.moisture);
+      plantChart.data.datasets[1].data = history.map(h => h.temp);
+      plantChart.data.datasets[2].data = history.map(h => h.ldr);
+      plantChart.update();
+    }
+
+    function handleSensorData(event) {
+      const text = new TextDecoder().decode(event.target.value);
+      const data = {};
+      text.split(',').forEach(pair => {
+        const [key, value] = pair.split(':');
+        if (key && value) data[key.trim()] = parseFloat(value.trim());
+      });
+
+      if (!isNaN(data.moisture) && !isNaN(data.temp) && !isNaN(data.ldr)) {
+        updateHeader(data);
+        saveToLocalStorage(data);
+        loadHistoryFromStorage();
+      }
+    }
+
+    async function connectBluetooth() {
+      try {
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "SPPP5Pro" }],
+          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+        });
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+        txChar = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+        rxChar = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+        await rxChar.startNotifications();
+        rxChar.addEventListener('characteristicvaluechanged', handleSensorData);
+        document.getElementById("live-status").innerText = "✅ Connected to SPPP5Pro!";
+      } catch (err) {
+        document.getElementById("live-status").innerText = "❌ Connection failed: " + err;
+      }
+    }
+
+    async function sendWaterCommand() {
+      if (!txChar) {
+        document.getElementById("live-status").innerText = "⚠️ Please connect first.";
+        return;
+      }
+      await txChar.writeValue(new TextEncoder().encode("WATER"));
+      document.getElementById("live-status").innerText = "💧 Watering...";
+    }
+
+    loadHistoryFromStorage();
+  </script></body>
 </html>

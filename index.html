@@ -77,6 +77,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="header">
     <div id="temp">Temp: --°C</div>
@@ -151,11 +152,13 @@
       document.getElementById("temp").innerText = `Temp: ${data.temp}°C`;
       document.getElementById("light").innerText = `Light: ${data.ldr} Lux`;
       document.getElementById("moist").innerText = `Moisture: ${data.moisture}%`;
+
       let status = "🌿 All Good!";
       if (data.moisture < 35) status = "🥀 I’m thirsty!";
       else if (data.temp > 35) status = "🔥 Too hot!";
       else if (data.temp < 15) status = "❄️ I’m shivering!";
       else if (data.ldr < 100) status = "🌑 Too dark!";
+
       document.getElementById("status").innerText = `Status: ${status}`;
     }
 

@@ -3,6 +3,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPPP5Pro - Plant Control</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
@@ -12,32 +13,37 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       min-height: 100vh;
       padding: 20px;
     }
     h1 {
       color: #6B8E23;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
     button {
-      padding: 15px 30px;
-      font-size: 18px;
-      margin: 10px;
+      padding: 14px 28px;
+      font-size: 16px;
+      margin: 8px;
       background-color: #A8C66C;
       color: #fff;
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     button:hover {
       background-color: #92b15a;
     }
     #status {
-      margin-top: 30px;
-      font-size: 18px;
+      margin-top: 10px;
+      font-size: 16px;
       text-align: center;
+    }
+    canvas {
+      margin-top: 20px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
@@ -45,9 +51,61 @@
   <h1>🌿 SPPP5Pro Plant Control</h1>
   <button onclick="connectBluetooth()">🔗 Connect to Plant</button>
   <button onclick="sendWaterCommand()">💧 Water Now</button>
-  <div id="status">Waiting for connection...</div>  <script>
-    let bluetoothDevice;
-    let txCharacteristic;
+  <div id="status">Waiting for connection...</div><canvas id="sensorChart" width="350" height="200"></canvas>
+
+  <script>
+    let bluetoothDevice, txChar, rxChar;
+    const MAX_POINTS = 30;
+
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Moisture',
+            data: [],
+            borderColor: '#6B8E23',
+            tension: 0.4,
+            fill: false
+          },
+          {
+            label: 'Temperature (°C)',
+            data: [],
+            borderColor: '#ff7f50',
+            tension: 0.4,
+            fill: false
+          },
+          {
+            label: 'Light (LDR)',
+            data: [],
+            borderColor: '#4682B4',
+            tension: 0.4,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: false,
+        animation: false,
+        scales: {
+          x: {
+            display: false
+          },
+          y: {
+            beginAtZero: true
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              boxWidth: 12
+            }
+          }
+        }
+      }
+    });
 
     async function connectBluetooth() {
       try {
@@ -58,7 +116,11 @@
 
         const server = await bluetoothDevice.gatt.connect();
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-        txCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+        txChar = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+        rxChar = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+
+        await rxChar.startNotifications();
+        rxChar.addEventListener('characteristicvaluechanged', handleSensorData);
 
         document.getElementById("status").innerText = "✅ Connected to SPPP5Pro!";
       } catch (error) {
@@ -67,13 +129,38 @@
     }
 
     async function sendWaterCommand() {
-      if (!txCharacteristic) {
+      if (!txChar) {
         document.getElementById("status").innerText = "⚠️ Please connect first.";
         return;
       }
-      const encoder = new TextEncoder();
-      await txCharacteristic.writeValue(encoder.encode("WATER"));
+      await txChar.writeValue(new TextEncoder().encode("WATER"));
       document.getElementById("status").innerText = "💧 Watering...";
+    }
+
+    function handleSensorData(event) {
+      const text = new TextDecoder().decode(event.target.value);
+      const data = {};
+      text.split(',').forEach(item => {
+        const [key, val] = item.split(':');
+        if (key && val) data[key.trim()] = parseFloat(val.trim());
+      });
+
+      if (data.moisture && data.temp && data.ldr) {
+        const now = new Date().toLocaleTimeString();
+        const labels = chart.data.labels;
+        if (labels.length >= MAX_POINTS) labels.shift();
+        labels.push(now);
+
+        chart.data.datasets[0].data.push(data.moisture);
+        chart.data.datasets[1].data.push(data.temp);
+        chart.data.datasets[2].data.push(data.ldr);
+
+        chart.data.datasets.forEach(dataset => {
+          if (dataset.data.length > MAX_POINTS) dataset.data.shift();
+        });
+
+        chart.update();
+      }
     }
   </script></body>
 </html>

@@ -1,9 +1,10 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPPP5Pro - Smart Plant Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -12,6 +13,7 @@
       background: linear-gradient(to bottom right, #e8f5e9, #f1f8e9);
       color: #333;
     }
+
     .header {
       padding: 20px;
       background: rgba(0, 128, 0, 0.1);
@@ -22,6 +24,7 @@
       font-size: 1.2em;
       border-bottom: 2px solid #c8e6c9;
     }
+
     .header div {
       margin: 10px;
       padding: 10px 20px;
@@ -30,6 +33,7 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       color: #1b5e20;
     }
+
     .chart-container {
       width: 90%;
       max-width: 1000px;
@@ -39,15 +43,18 @@
       border-radius: 20px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
+
     h2 {
       text-align: center;
       margin-top: 30px;
       color: #2e7d32;
     }
+
     .buttons {
       text-align: center;
       margin: 20px;
     }
+
     button {
       padding: 14px 28px;
       font-size: 16px;
@@ -58,9 +65,11 @@
       border-radius: 10px;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #92b15a;
     }
+
     #live-status {
       text-align: center;
       font-size: 16px;
@@ -68,19 +77,26 @@
     }
   </style>
 </head>
-<body>  <div class="header">
+<body>
+  <div class="header">
     <div id="temp">Temp: --°C</div>
     <div id="light">Light: -- Lux</div>
     <div id="moist">Moisture: --%</div>
     <div id="status">Status: 🌱 Waiting...</div>
-  </div>  <div class="buttons">
+  </div>
+
+  <div class="buttons">
     <button onclick="connectBluetooth()">🔗 Connect to Plant</button>
     <button onclick="sendWaterCommand()">💧 Water Now</button>
     <div id="live-status">Waiting for connection...</div>
-  </div>  <h2>Plant History - Last 30 Days</h2>
+  </div>
+
+  <h2>Plant History - Last 30 Days</h2>
   <div class="chart-container">
     <canvas id="plantChart"></canvas>
-  </div>  <script>
+  </div>
+
+  <script>
     let bluetoothDevice, txChar, rxChar;
     const MAX_POINTS = 30;
 
@@ -203,5 +219,6 @@
     }
 
     loadHistoryFromStorage();
-  </script></body>
+  </script>
+</body>
 </html>
